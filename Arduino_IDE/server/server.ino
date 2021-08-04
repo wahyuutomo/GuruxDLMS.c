@@ -45,7 +45,7 @@
 
 
 unsigned char hdlcChanged = 0;
-const static char *FLAG_ID = "GRX";
+const static char *FLAG_ID = "XIR";
 const static uint16_t SERIALIZATION_VERSION = 1;
 
 #define HDLC_HEADER_SIZE 17
@@ -175,11 +175,14 @@ typedef struct {
   char testMode = 1;
   //SAP assigment lists.
   GXSapList sapAssignmentList;
+  char meterId[17];
 } GXSerializedMeterData;
 
 GXSerializedMeterData meterData;
 //Push objects are added here.
 static gxTarget PUSH_OBJECTS[6];
+
+static gxData meterId;
 
 static gxData ldn;
 static gxData eventCode;
@@ -206,6 +209,7 @@ static gxSecuritySetup securitySetupHigh;
 
 static gxObject* ALL_OBJECTS[] = { BASE(associationNone), BASE(associationLow), BASE(associationHigh), BASE(associationHighGMac), BASE(securitySetupLow), BASE(securitySetupHigh),
                                    BASE(ldn), BASE(sapAssignment), BASE(eventCode),
+                                   BASE(meterId),
                                    BASE(meterData.clock1), BASE(activePowerL1), BASE(pushSetup), BASE(scriptTableGlobalMeterReset), BASE(scriptTableDisconnectControl),
                                    BASE(scriptTableActivateTestMode), BASE(scriptTableActivateNormalMode), BASE(profileGeneric), BASE(eventLog), BASE(meterData.hdlc),
                                    BASE(disconnectControl), BASE(actionScheduleDisconnectOpen), BASE(actionScheduleDisconnectClose)
@@ -585,6 +589,18 @@ int addLogicalDeviceName()
   {
     sprintf(meterData.LDN, "%s%.13lu", FLAG_ID, meterData.SERIAL_NUMBER);
     GX_OCTET_STRING(ldn.value, meterData.LDN, sizeof(meterData.LDN));
+  }
+  return ret;
+}
+
+int addMeterId()
+{
+  int ret;
+  const unsigned char ln[6] = { 0, 0, 96, 1, 0, 255 };
+  if ((ret = INIT_OBJECT(meterId, DLMS_OBJECT_TYPE_DATA, ln)) == 0)
+  {
+    sprintf(meterData.meterId, "%s%.13lu", FLAG_ID, meterData.SERIAL_NUMBER);
+    GX_OCTET_STRING(meterId.value, meterData.meterId, sizeof(meterData.meterId));
   }
   return ret;
 }
@@ -1047,6 +1063,7 @@ void createObjects()
   int ret;
   uint16_t serializationVersion = load();
   if ((ret = addLogicalDeviceName()) != 0 ||
+      (ret = addMeterId()) != 0 ||
       (ret = addSapAssignment(serializationVersion)) != 0 ||
       (ret = addEventCode()) != 0 ||
       (ret = addClockObject(serializationVersion)) != 0 ||
