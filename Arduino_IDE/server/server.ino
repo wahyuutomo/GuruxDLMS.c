@@ -175,7 +175,13 @@ typedef struct {
   char testMode = 1;
   //SAP assigment lists.
   GXSapList sapAssignmentList;
-  char meterId[17];
+  char meterId[12];
+  char meterType[9];
+  char softwareVersion[9];
+  char hardwareVersion[9];
+  char firmwareChecksum[6];
+  char customerId[21];
+  char unitPlnId[21];
 } GXSerializedMeterData;
 
 GXSerializedMeterData meterData;
@@ -183,6 +189,12 @@ GXSerializedMeterData meterData;
 static gxTarget PUSH_OBJECTS[6];
 
 static gxData meterId;
+static gxData meterType;
+static gxData softwareVersion;
+static gxData hardwareVersion;
+static gxData firmwareChecksum;
+static gxData customerId;
+static gxData unitPlnId;
 
 static gxData ldn;
 static gxData eventCode;
@@ -209,7 +221,7 @@ static gxSecuritySetup securitySetupHigh;
 
 static gxObject* ALL_OBJECTS[] = { BASE(associationNone), BASE(associationLow), BASE(associationHigh), BASE(associationHighGMac), BASE(securitySetupLow), BASE(securitySetupHigh),
                                    BASE(ldn), BASE(sapAssignment), BASE(eventCode),
-                                   BASE(meterId),
+                                   BASE(meterId), BASE(meterType), BASE(softwareVersion), BASE(hardwareVersion), BASE(firmwareChecksum), BASE(customerId), BASE(unitPlnId),
                                    BASE(meterData.clock1), BASE(activePowerL1), BASE(pushSetup), BASE(scriptTableGlobalMeterReset), BASE(scriptTableDisconnectControl),
                                    BASE(scriptTableActivateTestMode), BASE(scriptTableActivateNormalMode), BASE(profileGeneric), BASE(eventLog), BASE(meterData.hdlc),
                                    BASE(disconnectControl), BASE(actionScheduleDisconnectOpen), BASE(actionScheduleDisconnectClose)
@@ -291,6 +303,7 @@ void GXTRACE(const char* str, const char* data)
       Serial1.write(data, strlen(data));
     }
     Serial1.write("\0", 1);
+    Serial1.println();
     //Serial1.flush();
   }
 }
@@ -371,7 +384,7 @@ void time_now(gxtime* value, unsigned char meterTime)
 int addAssociationNone()
 {
   int ret;
-  const unsigned char ln[6] = { 0, 0, 40, 0, 1, 255 };
+  const unsigned char ln[6] = { 0, 0, 40, 0, 0, 255 };
   if ((ret = INIT_OBJECT(associationNone, DLMS_OBJECT_TYPE_ASSOCIATION_LOGICAL_NAME, ln)) == 0)
   {
     //All objects are shown also without authentication.
@@ -599,11 +612,84 @@ int addMeterId()
   const unsigned char ln[6] = { 0, 0, 96, 1, 0, 255 };
   if ((ret = INIT_OBJECT(meterId, DLMS_OBJECT_TYPE_DATA, ln)) == 0)
   {
-    sprintf(meterData.meterId, "%s%.13lu", FLAG_ID, meterData.SERIAL_NUMBER);
+    sprintf(meterData.meterId, "%s%.9lu", FLAG_ID, meterData.SERIAL_NUMBER);
     GX_OCTET_STRING(meterId.value, meterData.meterId, sizeof(meterData.meterId));
   }
   return ret;
 }
+
+int addMeterType()
+{
+  int ret;
+  const unsigned char ln[6] = { 0, 0, 96, 1, 1, 255 };
+  if ((ret = INIT_OBJECT(meterType, DLMS_OBJECT_TYPE_DATA, ln)) == 0)
+  {
+    sprintf(meterData.meterType, "2s2r1pre");
+    GX_OCTET_STRING(meterType.value, meterData.meterType, sizeof(meterData.meterType));
+  }
+  return ret;
+}
+
+int addSoftwareVersion()
+{
+  int ret;
+  const unsigned char ln[6] = { 1, 0, 0, 2, 0, 255 };
+  if ((ret = INIT_OBJECT(softwareVersion, DLMS_OBJECT_TYPE_DATA, ln)) == 0)
+  {
+    sprintf(meterData.softwareVersion, "v0.0.123");
+    GX_OCTET_STRING(softwareVersion.value, meterData.softwareVersion, sizeof(meterData.softwareVersion));
+  }
+  return ret;
+}
+
+int addHardwareVersion()
+{
+  int ret;
+  const unsigned char ln[6] = { 0, 0, 96, 96, 0, 255 };
+  if ((ret = INIT_OBJECT(hardwareVersion, DLMS_OBJECT_TYPE_DATA, ln)) == 0)
+  {
+    sprintf(meterData.hardwareVersion, "v1.3.000");
+    GX_OCTET_STRING(hardwareVersion.value, meterData.hardwareVersion, sizeof(meterData.hardwareVersion));
+  }
+  return ret;
+}
+
+int addFirmwareChecksum()
+{
+  int ret;
+  const unsigned char ln[6] = { 1, 0, 0, 2, 8, 255 };
+  if ((ret = INIT_OBJECT(firmwareChecksum, DLMS_OBJECT_TYPE_DATA, ln)) == 0)
+  {
+    sprintf(meterData.firmwareChecksum, "2j4l2");
+    GX_OCTET_STRING(firmwareChecksum.value, meterData.firmwareChecksum, sizeof(meterData.firmwareChecksum));
+  }
+  return ret;
+}
+
+int addCustomerId()
+{
+  int ret;
+  const unsigned char ln[6] = { 0, 0, 96, 1, 2, 255 };
+  if ((ret = INIT_OBJECT(customerId, DLMS_OBJECT_TYPE_DATA, ln)) == 0)
+  {
+    sprintf(meterData.customerId, "%.20lu", 94885734853);
+    GX_OCTET_STRING(customerId.value, meterData.customerId, sizeof(meterData.customerId));
+  }
+  return ret;
+}
+
+int addUnitPlnId()
+{
+  int ret;
+  const unsigned char ln[6] = { 0, 0, 96, 1, 3, 255 };
+  if ((ret = INIT_OBJECT(unitPlnId, DLMS_OBJECT_TYPE_DATA, ln)) == 0)
+  {
+    sprintf(meterData.unitPlnId, "%.20lu", 1120394);
+    GX_OCTET_STRING(unitPlnId.value, meterData.unitPlnId, sizeof(meterData.unitPlnId));
+  }
+  return ret;
+}
+
 
 //Add event code object.
 int addEventCode()
@@ -1064,6 +1150,12 @@ void createObjects()
   uint16_t serializationVersion = load();
   if ((ret = addLogicalDeviceName()) != 0 ||
       (ret = addMeterId()) != 0 ||
+      (ret = addMeterType()) != 0 ||
+      (ret = addSoftwareVersion()) != 0 ||
+      (ret = addHardwareVersion()) != 0 ||
+      (ret = addFirmwareChecksum()) != 0 ||
+      (ret = addCustomerId()) != 0 ||
+      (ret = addUnitPlnId()) != 0 ||
       (ret = addSapAssignment(serializationVersion)) != 0 ||
       (ret = addEventCode()) != 0 ||
       (ret = addClockObject(serializationVersion)) != 0 ||
