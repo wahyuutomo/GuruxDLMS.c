@@ -209,6 +209,9 @@ static gxRegister batCapacity;
 static gxRegister supercapCapacity;
 static gxRegister freqReg;
 
+// 6.1.4 Script kondisi meter
+static gxScriptTable scriptTableClearTamper;
+
 //////////////////////////////////////////////////////
 
 static gxData ldn;
@@ -239,6 +242,7 @@ static gxObject* ALL_OBJECTS[] = { BASE(associationNone), BASE(associationLow), 
                                    BASE(meterId), BASE(meterType), BASE(softwareVersion), BASE(hardwareVersion), BASE(firmwareChecksum), BASE(customerId), BASE(unitPlnId),
                                    BASE(meterConstantAct), BASE(meterConstantReact),
                                    BASE(batCapacity), BASE(supercapCapacity), BASE(freqReg),
+                                   BASE(scriptTableClearTamper),
                                    BASE(meterData.clock1), BASE(activePowerL1), BASE(pushSetup), BASE(scriptTableGlobalMeterReset), BASE(scriptTableDisconnectControl),
                                    BASE(scriptTableActivateTestMode), BASE(scriptTableActivateNormalMode), BASE(profileGeneric), BASE(eventLog), BASE(meterData.hdlc),
                                    BASE(disconnectControl), BASE(actionScheduleDisconnectOpen), BASE(actionScheduleDisconnectClose)
@@ -947,6 +951,22 @@ int addscriptTableGlobalMeterReset()
   return ret;
 }
 
+///////////////////////////////////////////////////////////////////////
+//Add script table object for clear tamper.
+///////////////////////////////////////////////////////////////////////
+int addscriptTableClearTamper()
+{
+  int ret;
+  static gxScript SCRIPTS[1] = { 0 };
+  const unsigned char ln[6] = { 0, 0, 10, 1, 0, 255 };
+  if ((ret = INIT_OBJECT(scriptTableClearTamper, DLMS_OBJECT_TYPE_SCRIPT_TABLE, ln)) == 0)
+  {
+    SCRIPTS[0].id = 1;
+    ARR_ATTACH(scriptTableClearTamper.scripts, SCRIPTS, 1);
+  }
+  return ret;
+}
+
 /////////////////////////////////////////////////////////////////////
 //Add script table object for disconnect control.
 //Action 1 calls remote_disconnect #1 (close).
@@ -1270,6 +1290,7 @@ void createObjects()
       (ret = addSecuritySetupHigh()) != 0 ||
       (ret = addPushSetup(serializationVersion)) != 0 ||
       (ret = addscriptTableGlobalMeterReset()) != 0 ||
+      (ret = addscriptTableClearTamper()) != 0 ||
       (ret = addscriptTableDisconnectControl()) != 0 ||
       (ret = addscriptTableActivateTestMode()) != 0 ||
       (ret = addscriptTableActivateNormalMode()) != 0 ||
@@ -1890,6 +1911,11 @@ void svr_preAction(
         }
       */
       updateState(GURUX_EVENT_CODES_GLOBAL_METER_RESET);
+      e->handled = 1;
+    }
+    else if (e->target == BASE(scriptTableClearTamper) && e->index == 1)
+    {
+      Serial1.println("\n\n\nCLEAR METER TAMPER\n\n\n");
       e->handled = 1;
     }
     else if (e->target == BASE(disconnectControl))
