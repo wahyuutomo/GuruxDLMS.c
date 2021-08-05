@@ -204,6 +204,11 @@ static gxData unitPlnId;
 static gxRegister meterConstantAct;
 static gxRegister meterConstantReact;
 
+// 6.1.3 Informasi kondisi meter
+static gxRegister batCapacity;
+static gxRegister supercapCapacity;
+static gxRegister freqReg;
+
 //////////////////////////////////////////////////////
 
 static gxData ldn;
@@ -233,6 +238,7 @@ static gxObject* ALL_OBJECTS[] = { BASE(associationNone), BASE(associationLow), 
                                    BASE(ldn), BASE(sapAssignment), BASE(eventCode),
                                    BASE(meterId), BASE(meterType), BASE(softwareVersion), BASE(hardwareVersion), BASE(firmwareChecksum), BASE(customerId), BASE(unitPlnId),
                                    BASE(meterConstantAct), BASE(meterConstantReact),
+                                   BASE(batCapacity), BASE(supercapCapacity), BASE(freqReg),
                                    BASE(meterData.clock1), BASE(activePowerL1), BASE(pushSetup), BASE(scriptTableGlobalMeterReset), BASE(scriptTableDisconnectControl),
                                    BASE(scriptTableActivateTestMode), BASE(scriptTableActivateNormalMode), BASE(profileGeneric), BASE(eventLog), BASE(meterData.hdlc),
                                    BASE(disconnectControl), BASE(actionScheduleDisconnectOpen), BASE(actionScheduleDisconnectClose)
@@ -247,6 +253,9 @@ static uint32_t executeTime = 0;
 static uint16_t activePowerL1Value = 0;
 static uint32_t meterConstantActValue = 0;
 static uint32_t meterConstantReactValue = 0;
+static uint32_t batCapacityValue = 0;
+static uint32_t supercapCapacityValue = 0;
+static uint32_t freqRegValue = 0;
 
 typedef enum
 {
@@ -868,6 +877,51 @@ int addMeterConstReact()
   return ret;
 }
 
+int addBatCapacity()
+{
+  int ret;
+  const unsigned char ln[6] = { 0, 0, 96, 6, 3, 255 };
+  if ((ret = INIT_OBJECT(batCapacity, DLMS_OBJECT_TYPE_REGISTER, ln)) == 0)
+  {
+    batCapacityValue = 9000;
+    GX_UINT32_BYREF(batCapacity.value, batCapacityValue);
+    //10 ^ 3 =  1000
+    batCapacity.scaler = -3;
+    batCapacity.unit = 35;
+  }
+  return ret;
+}
+
+int addSupercapCapacity()
+{
+  int ret;
+  const unsigned char ln[6] = { 0, 0, 96, 6, 13, 255 };
+  if ((ret = INIT_OBJECT(supercapCapacity, DLMS_OBJECT_TYPE_REGISTER, ln)) == 0)
+  {
+    supercapCapacityValue = 2000;
+    GX_UINT32_BYREF(supercapCapacity.value, supercapCapacityValue);
+    //10 ^ 3 =  1000
+    supercapCapacity.scaler = -3;
+    supercapCapacity.unit = 35;
+  }
+  return ret;
+}
+
+int addFreqReg()
+{
+  int ret;
+  const unsigned char ln[6] = { 1, 0, 14, 7, 0, 255 };
+  if ((ret = INIT_OBJECT(freqReg, DLMS_OBJECT_TYPE_REGISTER, ln)) == 0)
+  {
+    freqRegValue = 5000;
+    GX_UINT32_BYREF(freqReg.value, freqRegValue);
+    //10 ^ 3 =  1000
+    freqReg.scaler = -2;
+    freqReg.unit = 44;
+  }
+  return ret;
+}
+
 uint16_t readActivePowerValue()
 {
   return ++activePowerL1Value;
@@ -1201,6 +1255,9 @@ void createObjects()
       (ret = addUnitPlnId()) != 0 ||
       (ret = addMeterConstAct()) != 0 ||
       (ret = addMeterConstReact()) != 0 ||
+      (ret = addBatCapacity()) != 0 ||
+      (ret = addSupercapCapacity()) != 0 ||
+      (ret = addFreqReg()) != 0 ||
       (ret = addSapAssignment(serializationVersion)) != 0 ||
       (ret = addEventCode()) != 0 ||
       (ret = addClockObject(serializationVersion)) != 0 ||
