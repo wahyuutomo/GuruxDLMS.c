@@ -188,6 +188,10 @@ GXSerializedMeterData meterData;
 //Push objects are added here.
 static gxTarget PUSH_OBJECTS[6];
 
+//////////////////////////////////////////////////////
+
+// SPLN D3.006-2: 2021
+// 6.1.1 Informasi dasar
 static gxData meterId;
 static gxData meterType;
 static gxData softwareVersion;
@@ -195,6 +199,11 @@ static gxData hardwareVersion;
 static gxData firmwareChecksum;
 static gxData customerId;
 static gxData unitPlnId;
+
+// 6.1.2 Konstanta meter
+static gxRegister meterConstantAct;
+
+//////////////////////////////////////////////////////
 
 static gxData ldn;
 static gxData eventCode;
@@ -222,6 +231,7 @@ static gxSecuritySetup securitySetupHigh;
 static gxObject* ALL_OBJECTS[] = { BASE(associationNone), BASE(associationLow), BASE(associationHigh), BASE(associationHighGMac), BASE(securitySetupLow), BASE(securitySetupHigh),
                                    BASE(ldn), BASE(sapAssignment), BASE(eventCode),
                                    BASE(meterId), BASE(meterType), BASE(softwareVersion), BASE(hardwareVersion), BASE(firmwareChecksum), BASE(customerId), BASE(unitPlnId),
+                                   BASE(meterConstantAct),
                                    BASE(meterData.clock1), BASE(activePowerL1), BASE(pushSetup), BASE(scriptTableGlobalMeterReset), BASE(scriptTableDisconnectControl),
                                    BASE(scriptTableActivateTestMode), BASE(scriptTableActivateNormalMode), BASE(profileGeneric), BASE(eventLog), BASE(meterData.hdlc),
                                    BASE(disconnectControl), BASE(actionScheduleDisconnectOpen), BASE(actionScheduleDisconnectClose)
@@ -234,6 +244,7 @@ static uint32_t started = 0;
 static uint32_t executeTime = 0;
 
 static uint16_t activePowerL1Value = 0;
+static uint32_t meterConstantActValue = 0;
 
 typedef enum
 {
@@ -825,6 +836,21 @@ int addRegisterObject()
   return ret;
 }
 
+int addMeterConstAct()
+{
+  int ret;
+  const unsigned char ln[6] = { 1, 0, 0, 3, 0, 255 };
+  if ((ret = INIT_OBJECT(meterConstantAct, DLMS_OBJECT_TYPE_REGISTER, ln)) == 0)
+  {
+    meterConstantActValue = 1000;
+    GX_UINT32_BYREF(meterConstantAct.value, meterConstantActValue);
+    //10 ^ 3 =  1000
+    meterConstantAct.scaler = -3;
+    meterConstantAct.unit = 45;
+  }
+  return ret;
+}
+
 uint16_t readActivePowerValue()
 {
   return ++activePowerL1Value;
@@ -1156,6 +1182,7 @@ void createObjects()
       (ret = addFirmwareChecksum()) != 0 ||
       (ret = addCustomerId()) != 0 ||
       (ret = addUnitPlnId()) != 0 ||
+      (ret = addMeterConstAct()) != 0 ||
       (ret = addSapAssignment(serializationVersion)) != 0 ||
       (ret = addEventCode()) != 0 ||
       (ret = addClockObject(serializationVersion)) != 0 ||
