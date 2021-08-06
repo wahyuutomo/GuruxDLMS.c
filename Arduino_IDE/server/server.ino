@@ -152,6 +152,14 @@ typedef struct
   char hlsPassword[20];
 } GXAssociation;
 
+typedef enum
+{
+  NOT_SPECIFIED = 0,
+  FUNDAMENTAL = 1,
+  TOTAL_HARMONIK = 2,
+  TOTAL_HARMONIK_ABSOLUT = 128
+} ENERGY_ACTIVE_ALGORITHM_TYPE;
+
 //Save serialized meter data here.
 typedef struct {
   //Meter serial number.
@@ -182,6 +190,9 @@ typedef struct {
   char firmwareChecksum[6];
   char customerId[21];
   char unitPlnId[21];
+
+  ENERGY_ACTIVE_ALGORITHM_TYPE actEnergyAlgorithm;
+
 } GXSerializedMeterData;
 
 GXSerializedMeterData meterData;
@@ -211,6 +222,9 @@ static gxRegister freqReg;
 
 // 6.1.4 Script kondisi meter
 static gxScriptTable scriptTableClearTamper;
+
+// 6.1.5 Algoritma pengukuran energi aktif
+static gxData actEnergyAlgorithm;
 
 //////////////////////////////////////////////////////
 
@@ -242,7 +256,7 @@ static gxObject* ALL_OBJECTS[] = { BASE(associationNone), BASE(associationLow), 
                                    BASE(meterId), BASE(meterType), BASE(softwareVersion), BASE(hardwareVersion), BASE(firmwareChecksum), BASE(customerId), BASE(unitPlnId),
                                    BASE(meterConstantAct), BASE(meterConstantReact),
                                    BASE(batCapacity), BASE(supercapCapacity), BASE(freqReg),
-                                   BASE(scriptTableClearTamper),
+                                   BASE(scriptTableClearTamper), BASE(actEnergyAlgorithm),
                                    BASE(meterData.clock1), BASE(activePowerL1), BASE(pushSetup), BASE(scriptTableGlobalMeterReset), BASE(scriptTableDisconnectControl),
                                    BASE(scriptTableActivateTestMode), BASE(scriptTableActivateNormalMode), BASE(profileGeneric), BASE(eventLog), BASE(meterData.hdlc),
                                    BASE(disconnectControl), BASE(actionScheduleDisconnectOpen), BASE(actionScheduleDisconnectClose)
@@ -712,6 +726,18 @@ int addUnitPlnId()
   {
     sprintf(meterData.unitPlnId, "%.20lu", 1120394);
     GX_OCTET_STRING(unitPlnId.value, meterData.unitPlnId, sizeof(meterData.unitPlnId));
+  }
+  return ret;
+}
+
+int addActEnergyAlgorithm()
+{
+  int ret;
+  const unsigned char ln[6] = { 1, 0, 0, 11, 2, 255 };
+  if ((ret = INIT_OBJECT(actEnergyAlgorithm, DLMS_OBJECT_TYPE_DATA, ln)) == 0)
+  {
+    meterData.actEnergyAlgorithm = NOT_SPECIFIED;
+    GX_UINT8(actEnergyAlgorithm.value) = meterData.actEnergyAlgorithm;
   }
   return ret;
 }
@@ -1278,6 +1304,7 @@ void createObjects()
       (ret = addBatCapacity()) != 0 ||
       (ret = addSupercapCapacity()) != 0 ||
       (ret = addFreqReg()) != 0 ||
+      (ret = addActEnergyAlgorithm()) != 0 ||
       (ret = addSapAssignment(serializationVersion)) != 0 ||
       (ret = addEventCode()) != 0 ||
       (ret = addClockObject(serializationVersion)) != 0 ||
@@ -1934,6 +1961,7 @@ void svr_preAction(
     else if (e->target == BASE(scriptTableActivateTestMode))
     {
       //Activate test mode.
+      Serial1.println("\n\n\nTRIGGER TEST\n\n\n");
       meterData.testMode = 1;
       save(&meterData.testMode, sizeof(meterData.testMode));
     }
@@ -2355,6 +2383,9 @@ DLMS_ACCESS_MODE svr_getAttributeAccess(
   }
   if (obj->objectType == DLMS_OBJECT_TYPE_DATA)
   {
+    if (settings->authentication == DLMS_AUTHENTICATION_HIGH){
+      return DLMS_ACCESS_MODE_READ_WRITE;
+    }
     return getDataAttributeAccess(settings, index);
   }
   if (obj->objectType == DLMS_OBJECT_TYPE_IEC_HDLC_SETUP)
